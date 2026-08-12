@@ -24,6 +24,22 @@ function buttonTextColor(color: string): string {
   return "#ffffff";
 }
 
+function normalizeCtaUrl(value: string | undefined): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const candidate = raw.startsWith("//")
+    ? `https:${raw}`
+    : /^[a-z][a-z0-9+.-]*:/i.test(raw)
+      ? raw
+      : `https://${raw}`;
+  try {
+    const parsed = new URL(candidate);
+    return parsed.hostname && (parsed.protocol === "http:" || parsed.protocol === "https:") ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
 function relativeLuminance(color: string): number {
   const channels = [1, 3, 5].map((index) => parseInt(color.slice(index, index + 2), 16) / 255);
   const linear = channels.map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
@@ -80,6 +96,7 @@ export default function RecordingPage(props: InferGetServerSidePropsType<typeof 
   const buttonText = buttonTextColor(buttonColor);
   const pageText = pageTextColors(bgColor);
   const date = new Date(meta.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const ctaUrl = normalizeCtaUrl(meta.cta_url);
   const theme = { "--bg-color": bgColor, "--button-color": buttonColor, "--button-text-color": buttonText, "--text-color": pageText.primary, "--muted-text-color": pageText.muted } as CSSProperties;
-  return <><Head><title>{title} - ScreenVault</title><meta name="description" content={meta.description || title} /></Head><main className={`${styles.page} ${overrides.page}`} style={theme}><div className={styles.topline}>{logoUrl && <img className={styles.logo} src={logoUrl} alt="" />}</div><section className={styles.content}><div className={`${styles.videoFrame} ${styles[`size-${videoSize}`]} ${overrides.video}`}><video controls preload="metadata" src={videoUrl} poster={thumbUrl || undefined} /></div><div className={`${styles.details} ${overrides.details}`}><h1 className={overrides.title}>{title}</h1>{meta.description && <p className={`${styles.description} ${overrides.description}`}>{meta.description}</p>}<div className={`${styles.meta} ${overrides.pageText}`}><span>{Number(meta.views || 0).toLocaleString()} views</span><i aria-hidden="true">·</i><span>{date}</span></div>{meta.cta_text && meta.cta_url && <a className={styles.cta} href={meta.cta_url} target="_blank" rel="noreferrer">{meta.cta_text}<span>↗</span></a>}</div></section><footer className={`${styles.footer} ${overrides.pageText}`}><span>Made with <b>ScreenVault</b></span><a href="https://miniappsfactory.store/screenvault-pro">Create your own</a></footer></main></>;
+  return <><Head><title>{title} - ScreenVault</title><meta name="description" content={meta.description || title} /></Head><main className={`${styles.page} ${overrides.page}`} style={theme}><div className={styles.topline}>{logoUrl && <img className={styles.logo} src={logoUrl} alt="" />}</div><section className={styles.content}><div className={`${styles.videoFrame} ${styles[`size-${videoSize}`]} ${overrides.video}`}><video controls preload="metadata" src={videoUrl} poster={thumbUrl || undefined} /></div><div className={`${styles.details} ${overrides.details}`}><h1 className={overrides.title}>{title}</h1>{meta.description && <p className={`${styles.description} ${overrides.description}`}>{meta.description}</p>}<div className={`${styles.meta} ${overrides.pageText}`}><span>{Number(meta.views || 0).toLocaleString()} views</span><i aria-hidden="true">·</i><span>{date}</span></div>{meta.cta_text && ctaUrl && <a className={styles.cta} href={ctaUrl} target="_blank" rel="noreferrer">{meta.cta_text}<span>↗</span></a>}</div></section><footer className={`${styles.footer} ${overrides.pageText}`}><span>Made with <b>ScreenVault</b></span><a href="https://miniappsfactory.store/screenvault-pro">Create your own</a></footer></main></>;
 }
