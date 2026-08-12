@@ -6,6 +6,10 @@ export type RecordingMeta = {
   description?: string;
   cta_text?: string;
   cta_url?: string;
+  video_size?: "s" | "m" | "l";
+  bg_color?: string;
+  button_color?: string;
+  custom_logo_key?: string;
   video_key: string;
   thumb_key?: string;
   created_at: string;
@@ -13,6 +17,11 @@ export type RecordingMeta = {
 };
 
 export function objectUrl(key: string): string { return `${required("R2_PUBLIC_URL").replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`; }
+
+export function missingEnvironment(): string[] {
+  return ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME", "R2_PUBLIC_URL"]
+    .filter((name) => !process.env[name]?.trim());
+}
 
 export async function getMeta(slug: string): Promise<RecordingMeta | null> {
   try {
