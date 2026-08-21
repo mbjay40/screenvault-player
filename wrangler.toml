@@ -1,0 +1,9 @@
+name = "screenvault-player"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Bind this Worker to your Cloudflare R2 bucket. Change the bucket name below
+# to match the bucket you created (or rename the binding in the dashboard).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "screenvault-recordings"

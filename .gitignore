@@ -1,10 +1,4 @@
 node_modules/
-.next/
-out/
-*.tsbuildinfo
-.env
-.env.local
-.vercel/
-
-.vercel
-.env*
+.wrangler/
+.dev.vars
+*.log

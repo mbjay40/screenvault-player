@@ -1,28 +1,38 @@
-# ScreenVault Player
+# ScreenVault Player (Cloudflare Worker)
 
-This is the small Vercel project that renders your ScreenVault Pro recording pages. It is designed to be deployed into **your** Vercel account and connected directly to **your** Cloudflare R2 bucket.
+This is the Cloudflare Worker version of the ScreenVault Pro recording player. It replaces the Vercel + GitHub clone flow: no Vercel account, no environment variables. The Worker connects directly to your Cloudflare R2 bucket through an R2 binding and serves your recording pages and videos.
 
-## Fastest setup
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mbjay40/screenvault-player)
 
-1. Create a free Cloudflare account at [dash.cloudflare.com](https://dash.cloudflare.com), open **R2 Object Storage**, and create a bucket. Use a name such as `screenvault-recordings`.
-2. In R2, open **Manage R2 API Tokens**, create an API token, and grant `Object Read & Write` for the bucket. Copy the Access Key ID and Secret Access Key immediately; Cloudflare only shows the secret once.
-3. In the bucket, open **Settings > Public access** and enable the `r2.dev` public URL for development, or connect your own domain. Copy the complete public URL, for example `https://pub-xxxx.r2.dev`.
-4. Open the `Publishing` tab in ScreenVault Pro and click **Deploy your publishing page**. Vercel will clone this project into your account.
-5. When Vercel asks for environment variables, enter the five values below. Do not add quotes or trailing spaces.
-6. Click **Deploy**. When the deployment finishes, copy the Vercel URL into ScreenVault Pro's **Your publishing domain** field.
-7. Click **Test Page**. You should see `ScreenVault Player is running.`
+## One-click setup (what ScreenVault Pro customers do)
 
-## Environment variables
+1. Create a free Cloudflare account at [dash.cloudflare.com](https://dash.cloudflare.com), open **R2 Object Storage**, and create a bucket (for example `screenvault-recordings`).
+2. In R2, open **Manage R2 API Tokens**, create an API token, and grant `Object Read & Write` for the bucket. Copy the Access Key ID and Secret Access Key — these go into the **ScreenVault Pro desktop app**, not the Worker.
+3. In ScreenVault Pro's **Publishing** tab, click **Deploy your publishing page**. This opens Cloudflare's one-click **Deploy to Workers** flow. Sign in, choose your R2 bucket when prompted to bind it, and finish.
+4. Copy the resulting `https://screenvault-player.<subdomain>.workers.dev` URL into ScreenVault Pro's **Your publishing domain** field.
+5. Click **Test Page**. You should see `ScreenVault Player is running.`
 
-| Name | Value |
-| --- | --- |
-| `R2_ACCOUNT_ID` | Cloudflare account ID from R2 Overview |
-| `R2_ACCESS_KEY_ID` | Access Key ID from the R2 API token |
-| `R2_SECRET_ACCESS_KEY` | Secret Access Key from the R2 API token |
-| `R2_BUCKET_NAME` | Exact bucket name, such as `screenvault-recordings` |
-| `R2_PUBLIC_URL` | Public base URL, without a trailing slash |
+## How it differs from the Vercel version
 
-The app creates these objects when you publish:
+- **No Vercel.** The player runs entirely on Cloudflare Workers.
+- **No secrets.** The Worker uses an R2 binding, so no Access Key / Secret Key are stored in the Worker.
+- **Private bucket.** Your R2 bucket stays private — the Worker streams video, thumbnails, and logos directly, so you do not need the public `r2.dev` URL.
+- **No deploy hook.** Pages render live from R2 on every request, so nothing needs rebuilding after each publish.
+
+## Developing locally
+
+```powershell
+npm install
+npx wrangler login
+```
+
+Edit `wrangler.toml` and set `bucket_name` to your bucket, then deploy:
+
+```powershell
+npm run deploy
+```
+
+## Objects the desktop app creates
 
 ```text
 recordings/<slug>/video.mp4
@@ -33,18 +43,24 @@ recordings/index.json
 
 ## Routes
 
-- `/r/<slug>` renders a recording page, increments its view count, and serves the video from your R2 public URL.
-- `/r/test` is a connection check used by the desktop app.
+- `/r/<slug>` renders a recording page, increments its view count, and streams the video from your R2 bucket.
+- `/r/test` is the connection check used by the desktop app.
+- `/api/unlock/<slug>` verifies the password for password-protected recordings.
+- `/files/...` streams media (video, thumbnail, logo) from your private bucket with byte-range support.
+
+## Password-protected recordings
+
+Passwords are hashed with PBKDF2-SHA256 at 100,000 iterations (the Cloudflare Workers limit). The desktop app in this cloudflare-version has been updated to match, so password-protected recordings verify correctly on Workers.
 
 ## Custom domain
 
-In Vercel, open the project, choose **Settings > Domains**, and add your domain. Follow Vercel's DNS instructions. Then paste the custom domain into ScreenVault Pro. The player project and your R2 bucket remain yours if you stop using ScreenVault Pro.
+In the Cloudflare dashboard, open your Worker, choose **Triggers > Custom Domains**, and add your domain. Then paste the custom domain into ScreenVault Pro. The Worker and your R2 bucket remain yours if you stop using ScreenVault Pro.
 
 ## Troubleshooting
 
-- **Test page works but a recording is a 404:** check that the deployment has the exact same R2 bucket name and that the desktop app successfully uploaded `meta.json`.
-- **AccessDenied or video will not play:** enable public access on the R2 bucket or use a public custom domain. The player needs to be able to request the MP4 from a browser.
-- **Invalid credentials:** create a new R2 API token with Object Read & Write access scoped to the correct bucket and replace the Vercel environment values. Redeploy after changing variables.
-- **Views do not change:** the Vercel deployment needs write access, not read-only access, because it writes the incremented `meta.json`.
+- **Test page shows a configuration error:** make sure `bucket_name` in `wrangler.toml` matches your bucket and that you redeployed after changing it.
+- **A recording is a 404:** confirm the desktop app successfully uploaded `meta.json` to the same bucket.
+- **Views do not change:** the Worker's R2 binding needs read **and** write access, because it writes the incremented `meta.json`.
+- **Video will not play:** check that the bucket is bound to the Worker. No public access is required.
 
-Your files never pass through a ScreenVault server. The player talks directly to your R2 bucket using the credentials stored privately in your Vercel project.
+Your files never pass through a ScreenVault server. The Worker reads directly from your R2 bucket through its binding.
